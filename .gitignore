@@ -1,0 +1,25 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Dependency directories
+node_modules/
+
+# Optional cache and history
+.npm
+.eslintcache
+.node_repl_history
+
+# Environment variables
+.env
+.env*.local
+
+# Build output
+dist/
+*.tgz
+
+# IDE files
+.vscode/
+.idea/
+.DS_Store
