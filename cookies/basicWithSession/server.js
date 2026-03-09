@@ -18,6 +18,7 @@ const users = [{
 
 const sessions = {};
 app.use(express.json());
+app.use(express.urlencoded({extended : true}));
 app.use(cookieParser());
 
 const authenticate = (req, res, next) =>{
@@ -32,7 +33,15 @@ const authenticate = (req, res, next) =>{
 app.get("/", (req, res) =>{
     const sessionId = req.cookies.sessionId;
     if(!sessionId || !sessions[sessionId]){
-        return res.send("please login first");
+        return res.send(`
+            <form action="/login", method="POST">
+                <label for = "name"> Name: <label>
+                <input type = "text" name = "name" id = "name">
+                <label for = "password"> Password: <label>
+                <input type="password" name = "password" id = "password">
+                <button type="submit">Login</button>
+            <form>
+            `);
     };
     const userid = sessions[sessionId].id
     const user = users.find(u => u.id === userid);
@@ -44,12 +53,13 @@ app.get("/dashboard", authenticate, (req, res) =>{
 });
 
 app.post("/login", (req, res) =>{
-    const {username, password} = req.body;
-    if(!username || !password){
+    const formdata = req.body;
+    console.log(formdata);
+    if(!formdata){
         return res.status(401).send("please add credentials first");
     }
 
-    const user = users.find(u => u.name === username && u.password === password);
+    const user = users.find(u => u.name === formdata.name && u.password === formdata.password);
     if (user){
         const sessionId = crypto.randomBytes(16).toString("hex");
         sessions[sessionId] = {
@@ -62,7 +72,7 @@ app.post("/login", (req, res) =>{
             maxAge: 60000
         });
 
-        console.log(`${username} has logged in`);
+        console.log(`${formdata.name} has logged in`);
         res.redirect("/")
     }
 });
