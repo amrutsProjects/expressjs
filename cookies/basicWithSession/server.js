@@ -1,89 +1,80 @@
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const crypto = require("crypto");
+require("dotenv").config();
+const app = express();
 const PORT = process.env.PORT || 3000;
 
-const app = express();
-
-const users = [{
-    id: 1,
-    name: "amrut",
-    password: "123"
-},
-{
-    id: 2,
-    name: "pooja",
-    password: "1234"
-}];
-
-const sessions = {};
 app.use(express.json());
-app.use(express.urlencoded({extended : true}));
+app.use(express.urlencoded({extended: true}));
 app.use(cookieParser());
 
-const authenticate = (req, res, next) =>{
-    const sessionId = req.cookies.sessionId;
-    if(!sessionId || !sessions[sessionId]){
-        return res.status(401).send("Invalid credentials");
+const users = [
+    {
+        id: 1,
+        username: "amrut",
+        password: "123"
+    },
+    {
+        id: 2,
+        username: "pooja",
+        password: "1234"
     }
-    req.user = users.find(u => u.id === sessions[sessionId].id);
+];
+
+const sessions = {};
+
+const checkSession = (req, res, next) => {
+    const sessionId = req.cookies.sessionId;
+    if(!sessionId){
+        return res.redirect("/login");
+    }
+    res.locals.username = sessions[sessionId].username;
     next();
-}; 
+};
 
-app.get("/", (req, res) =>{
-    const sessionId = req.cookies.sessionId;
-    if(!sessionId || !sessions[sessionId]){
-        return res.send(`
-            <form action="/login", method="POST">
-                <label for = "name"> Name: <label>
-                <input type = "text" name = "name" id = "name">
-                <label for = "password"> Password: <label>
-                <input type="password" name = "password" id = "password">
-                <button type="submit">Login</button>
-            <form>
-            `);
-    };
-    const userid = sessions[sessionId].id
-    const user = users.find(u => u.id === userid);
-    res.send(`Welcome Back, ${user.name || "user"}`);
+app.get("/", checkSession, (req, res) =>{
+    res.send(`Welcome to server ${res.locals.username}`);
 });
 
-app.get("/dashboard", authenticate, (req, res) =>{
-    res.send(`welcome to dashboard, ${req.user.name}`);
+app.get("/login", (req, res) =>{
+    res.send(`
+            <form action = "/createSession" method = "POST">
+                <label for = "username">USERNAME: </label>
+                <input type = "text" id = "username" name = "username">
+                <br>
+                <label for = "password">PASSWORD: </label>
+                <input type = "password" id = "password" name = "password">
+                <br>
+                <button type = "submit">Log In</button>
+            </form>
+        `)
 });
 
-app.post("/login", (req, res) =>{
-    const formdata = req.body;
-    console.log(formdata);
-    if(!formdata){
-        return res.status(401).send("please add credentials first");
+app.post("/createSession", (req, res) =>{
+    const username = req.body.username;
+    const password = req.body.password;
+    const user = users.find(u => u.username === username);
+    if(!user){
+        console.log("incorrect username!!");
+        return res.redirect("/login");
     }
-
-    const user = users.find(u => u.name === formdata.name && u.password === formdata.password);
-    if (user){
-        const sessionId = crypto.randomBytes(16).toString("hex");
-        sessions[sessionId] = {
-            id: user.id,
-            startTime: Date.now()
-        }
-
-        res.cookie("sessionId", sessionId, {
-            httpOnly: true,
-            maxAge: 60000
-        });
-
-        console.log(`${formdata.name} has logged in`);
-        res.redirect("/")
+    if(user.password !== password){
+        console.log("incorrect password!!");
+        return res.redirect("login");
     }
-});
+     const sessionId = crypto.randomBytes(16).toString("hex");
+     console.log("session created for username: ", user.username);
 
-app.get("/logout", (req, res) =>{
-    const sessionId = req.cookies.sessionId;
-    if(sessionId){
-        delete sessions[sessionId];
-    }
-    res.clearCookie("sessionId");
-    res.send("logged out successfully")
+     sessions[sessionId] = {
+        id : user.id,
+        username: user.username
+     };
+     res.cookie("sessionId", sessionId, {
+        maxAge : 60 * 1000,
+        httpOnly: true
+     });
+     res.redirect("/");
 });
 
 app.listen(PORT, () =>{
